@@ -22,13 +22,12 @@ if ($_POST) {
         if ($action === 'add') {
             $stmt = $pdo->prepare("INSERT INTO categories (name, slug, logo, description, status) VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$name, $slug, $logo, $description, $status]);
-            $success = 'Category added successfully!';
         } else {
             $stmt = $pdo->prepare("UPDATE categories SET name=?, slug=?, logo=?, description=?, status=? WHERE id=?");
             $stmt->execute([$name, $slug, $logo, $description, $status, $id]);
-            $success = 'Category updated successfully!';
         }
         
+        $success = $action === 'add' ? 'Category added successfully!' : 'Category updated successfully!';
         header('Location: categories.php?success=' . urlencode($success));
         exit();
     }
@@ -37,9 +36,8 @@ if ($_POST) {
         $id = $_POST['id'];
         $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
         $stmt->execute([$id]);
-        $success = 'Category deleted successfully!';
         
-        header('Location: categories.php?success=' . urlencode($success));
+        header('Location: categories.php?success=' . urlencode('Category deleted successfully!'));
         exit();
     }
 }
@@ -50,7 +48,12 @@ if (isset($_GET['success'])) {
 }
 
 // Get categories
-$categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
+$categories = [];
+try {
+    $categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
+} catch (Exception $e) {
+    $error = 'Error loading categories: ' . $e->getMessage();
+}
 ?>
 
 <!DOCTYPE html>
@@ -119,15 +122,20 @@ $categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAl
                             </tr>
                         </thead>
                         <tbody>
+                            <?php if (empty($categories)): ?>
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 20px;">No categories found. <a href="#" onclick="openCategoryModal()">Add your first category</a></td>
+                            </tr>
+                            <?php else: ?>
                             <?php foreach($categories as $category): ?>
                             <tr>
                                 <td>
-                                    <img src="<?php echo $category['logo']; ?>" alt="<?php echo $category['name']; ?>" class="product-thumb">
+                                    <img src="<?php echo htmlspecialchars($category['logo']); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" class="product-thumb" onerror="this.src='https://via.placeholder.com/50x50?text=No+Image'">
                                 </td>
                                 <td>
-                                    <strong><?php echo $category['name']; ?></strong>
+                                    <strong><?php echo htmlspecialchars($category['name']); ?></strong>
                                 </td>
-                                <td><?php echo $category['description']; ?></td>
+                                <td><?php echo htmlspecialchars($category['description']); ?></td>
                                 <td>
                                     <span class="status-badge status-<?php echo $category['status']; ?>">
                                         <?php echo ucfirst($category['status']); ?>
@@ -146,6 +154,7 @@ $categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAl
                                 </td>
                             </tr>
                             <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -171,7 +180,10 @@ $categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAl
                 
                 <div class="form-group">
                     <label for="logo">Logo URL *</label>
-                    <input type="url" id="logo" name="logo" required>
+                    <input type="url" id="logo" name="logo" required placeholder="https://example.com/logo.jpg">
+                    <small style="color: #666; font-size: 0.8rem; display: block; margin-top: 5px;">
+                        Use a direct image URL for the category logo
+                    </small>
                 </div>
                 
                 <div class="form-group">
@@ -238,6 +250,31 @@ $categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAl
                 modal.style.display = 'none';
             }
         }
+        
+        // Add alert styles
+        const alertStyle = document.createElement('style');
+        alertStyle.textContent = `
+            .alert {
+                padding: 15px 20px;
+                border-radius: 8px;
+                margin-bottom: 25px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                transition: opacity 0.3s ease;
+            }
+            .alert-success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .alert-error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+        `;
+        document.head.appendChild(alertStyle);
     </script>
 </body>
 </html>

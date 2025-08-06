@@ -79,8 +79,14 @@ $category_images = [
 ];
 
 // Get categories
-$categories_stmt = $pdo->query("SELECT * FROM categories WHERE status = 'active' ORDER BY name");
-$categories = $categories_stmt->fetchAll();
+$categories = [];
+try {
+    $categories_stmt = $pdo->query("SELECT * FROM categories WHERE status = 'active' ORDER BY name ASC");
+    $categories = $categories_stmt->fetchAll();
+} catch (Exception $e) {
+    // Continue with empty categories array
+    error_log("Error loading categories: " . $e->getMessage());
+}
 
 // Get videos
 $videos_stmt = $pdo->query("SELECT * FROM videos WHERE status = 'active' ORDER BY created_at DESC LIMIT 5");
@@ -264,16 +270,23 @@ $videos = $videos_stmt->fetchAll();
         <div class="container">
             <h2 class="section-title animated-title">🚗 Categories</h2>
             <div class="categories-grid">
-                <?php foreach($categories as $index => $category): 
-                    $cat_image_url = $category_images[$index % count($category_images)];
-                ?>
-                <div class="category-card animated-category" onclick="window.location.href='index.php?category=<?php echo urlencode($category['name']); ?>'">
-                    <div class="category-image">
-                        <img src="<?php echo htmlspecialchars($cat_image_url); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>">
+                <?php if (!empty($categories)): ?>
+                    <?php foreach($categories as $index => $category): 
+                        // Use category logo if available, otherwise use default images
+                        $cat_image_url = !empty($category['logo']) ? $category['logo'] : $category_images[$index % count($category_images)];
+                    ?>
+                    <div class="category-card animated-category" onclick="window.location.href='index.php?category=<?php echo urlencode($category['name']); ?>'">
+                        <div class="category-image">
+                            <img src="<?php echo htmlspecialchars($cat_image_url); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>" onerror="this.src='<?php echo $category_images[$index % count($category_images)]; ?>'">
+                        </div>
+                        <h3><?php echo htmlspecialchars($category['name']); ?></h3>
                     </div>
-                    <h3><?php echo htmlspecialchars($category['name']); ?></h3>
-                </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <p>No categories available. <a href="admin/categories.php" style="color: #007bff;">Add categories in admin panel</a></p>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </section>

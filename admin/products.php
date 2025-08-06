@@ -52,6 +52,8 @@ if ($_POST) {
             $stmt->execute([$id]);
             $success = 'Product deleted successfully!';
             header('Location: products.php?success=' . urlencode($success));
+            exit();
+        }
     } catch (Exception $e) {
         $error = 'Database error: ' . $e->getMessage();
     }
@@ -73,9 +75,9 @@ try {
 // Get categories for dropdown
 $categories = [];
 try {
-    $categories = $pdo->query("SELECT * FROM categories WHERE status = 'active'")->fetchAll();
+    $categories = $pdo->query("SELECT * FROM categories WHERE status = 'active' ORDER BY name ASC")->fetchAll();
 } catch (Exception $e) {
-    // Continue without categories
+    error_log("Error loading categories for dropdown: " . $e->getMessage());
 }
 ?>
 
@@ -226,7 +228,7 @@ try {
                             <option value="">Select Category</option>
                             <option value="accessories">Car Accessories</option>
                             <?php foreach($categories as $cat): ?>
-                            <option value="<?php echo htmlspecialchars($cat['slug']); ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                            <option value="<?php echo htmlspecialchars($cat['name']); ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
