@@ -22,12 +22,14 @@ if ($_POST) {
         if ($action === 'add') {
             $stmt = $pdo->prepare("INSERT INTO categories (name, slug, logo, description, status) VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$name, $slug, $logo, $description, $status]);
+            $success = 'Category added successfully!';
         } else {
             $stmt = $pdo->prepare("UPDATE categories SET name=?, slug=?, logo=?, description=?, status=? WHERE id=?");
             $stmt->execute([$name, $slug, $logo, $description, $status, $id]);
+            $success = 'Category updated successfully!';
         }
         
-        header('Location: categories.php');
+        header('Location: categories.php?success=' . urlencode($success));
         exit();
     }
     
@@ -35,10 +37,16 @@ if ($_POST) {
         $id = $_POST['id'];
         $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
         $stmt->execute([$id]);
+        $success = 'Category deleted successfully!';
         
-        header('Location: categories.php');
+        header('Location: categories.php?success=' . urlencode($success));
         exit();
     }
+}
+
+// Get success message from URL
+if (isset($_GET['success'])) {
+    $success = $_GET['success'];
 }
 
 // Get categories
@@ -91,6 +99,13 @@ $categories = $pdo->query("SELECT * FROM categories ORDER BY name ASC")->fetchAl
             </header>
 
             <div class="content-area">
+                <?php if ($success): ?>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <?php echo $success; ?>
+                </div>
+                <?php endif; ?>
+
                 <div class="products-table">
                     <table>
                         <thead>

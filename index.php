@@ -2,6 +2,9 @@
 session_start();
 include 'config/database.php';
 
+// Get category filter if provided
+$category_filter = $_GET['category'] ?? '';
+
 // --- NEW HELPER FUNCTION TO PROCESS VIDEO LINKS ---
 // This function takes a URL from your database and checks if it's YouTube, Google Drive, or a direct link.
 // It returns the correct URL needed to embed the video in an iframe.
@@ -38,8 +41,13 @@ $stmt->execute([$ip, $device_type]);
 // Get visitor count
 $visitor_count = $pdo->query("SELECT SUM(visit_count) as total FROM visitors")->fetch()['total'] ?? 0;
 
-// Get products
-$products_stmt = $pdo->query("SELECT * FROM products WHERE status = 'active' ORDER BY created_at DESC");
+// Get products with optional category filter
+if ($category_filter) {
+    $products_stmt = $pdo->prepare("SELECT * FROM products WHERE status = 'active' AND category = ? ORDER BY created_at DESC");
+    $products_stmt->execute([$category_filter]);
+} else {
+    $products_stmt = $pdo->query("SELECT * FROM products WHERE status = 'active' ORDER BY created_at DESC");
+}
 $products = $products_stmt->fetchAll();
 
 // Update product images with working Pexels URLs
@@ -84,7 +92,7 @@ $videos = $videos_stmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAR DECORE - The Unique Car Accessories World</title>
+    <title><?php echo $category_filter ? ucfirst($category_filter) . ' Products - ' : ''; ?>CAR DECORE - The Unique Car Accessories World</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -146,6 +154,7 @@ $videos = $videos_stmt->fetchAll();
     </section>
 
     <!-- New Arrival Hot Products -->
+    <?php if (!$category_filter): ?>
     <section class="hot-products-section">
         <div class="container">
             <h2 class="section-title animated-title">🔥 New Arrival Hot Products - Top 10 List</h2>
@@ -185,6 +194,53 @@ $videos = $videos_stmt->fetchAll();
             </div>
         </div>
     </section>
+    <?php endif; ?>
+
+    <!-- Category-wise Products Display -->
+    <?php if ($category_filter): ?>
+    <section class="category-products-section">
+        <div class="container">
+            <h2 class="section-title animated-title"><?php echo ucfirst($category_filter); ?> Products</h2>
+            <div class="products-grid">
+                <?php foreach($products as $index => $product): 
+                    $image_url = $working_images[$index % count($working_images)];
+                ?>
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="<?php echo htmlspecialchars($image_url); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="zoomable">
+                        <div class="product-overlay">
+                            <button class="zoom-btn"><i class="fas fa-search-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3><?php echo htmlspecialchars($product['name']); ?></h3>
+                        <p><?php echo htmlspecialchars($product['description']); ?></p>
+                        <div class="product-price">
+                            <?php if($product['market_price'] > $product['price']): ?>
+                                <span class="market-price">₹<?php echo htmlspecialchars($product['market_price']); ?></span>
+                            <?php endif; ?>
+                            <span class="current-price">₹<?php echo htmlspecialchars($product['price']); ?></span>
+                        </div>
+                        <div class="product-actions">
+                            <button class="inquiry-btn" onclick="inquireProduct('<?php echo htmlspecialchars($product['name']); ?>')">
+                                <i class="fab fa-whatsapp"></i> Inquiry Now
+                            </button>
+                            <button class="cart-btn" onclick="addToCart(<?php echo htmlspecialchars($product['id']); ?>, '<?php echo htmlspecialchars($product['name']); ?>', <?php echo htmlspecialchars($product['price']); ?>)">
+                                <i class="fas fa-cart-plus"></i> Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="index.php" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back to All Products
+                </a>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
 
     <!-- Cart Summary -->
     <div class="cart-summary" id="cartSummary" style="display: none;">
@@ -203,6 +259,7 @@ $videos = $videos_stmt->fetchAll();
     </div>
 
     <!-- Categories Section -->
+    <?php if (!$category_filter): ?>
     <section class="categories-section">
         <div class="container">
             <h2 class="section-title animated-title">🚗 Categories</h2>
@@ -210,7 +267,7 @@ $videos = $videos_stmt->fetchAll();
                 <?php foreach($categories as $index => $category): 
                     $cat_image_url = $category_images[$index % count($category_images)];
                 ?>
-                <div class="category-card animated-category">
+                <div class="category-card animated-category" onclick="window.location.href='index.php?category=<?php echo urlencode($category['name']); ?>'">
                     <div class="category-image">
                         <img src="<?php echo htmlspecialchars($cat_image_url); ?>" alt="<?php echo htmlspecialchars($category['name']); ?>">
                     </div>
@@ -220,8 +277,10 @@ $videos = $videos_stmt->fetchAll();
             </div>
         </div>
     </section>
+    <?php endif; ?>
 
     <!-- Car Accessories Section -->
+    <?php if (!$category_filter): ?>
     <section class="accessories-section">
         <div class="container">
             <h2 class="section-title bubble-title animated-title">🧼 Car Accessories</h2>
@@ -242,17 +301,24 @@ $videos = $videos_stmt->fetchAll();
                         <h3><?php echo htmlspecialchars($accessory['name']); ?></h3>
                         <p><?php echo htmlspecialchars($accessory['description']); ?></p>
                         <div class="accessory-price">₹<?php echo htmlspecialchars($accessory['price']); ?></div>
-                        <button class="buy-btn" onclick="buyNow(<?php echo htmlspecialchars($accessory['id']); ?>, '<?php echo htmlspecialchars($accessory['name']); ?>', <?php echo htmlspecialchars($accessory['price']); ?>)">
-                            <i class="fab fa-whatsapp"></i> Buy Now
-                        </button>
+                        <div class="product-actions">
+                            <button class="cart-btn" onclick="addToCart(<?php echo htmlspecialchars($accessory['id']); ?>, '<?php echo htmlspecialchars($accessory['name']); ?>', <?php echo htmlspecialchars($accessory['price']); ?>)">
+                                <i class="fas fa-cart-plus"></i> Add to Cart
+                            </button>
+                            <button class="buy-btn" onclick="buyNow(<?php echo htmlspecialchars($accessory['id']); ?>, '<?php echo htmlspecialchars($accessory['name']); ?>', <?php echo htmlspecialchars($accessory['price']); ?>)">
+                                <i class="fab fa-whatsapp"></i> Buy Now
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <?php endforeach; ?>
             </div>
         </div>
     </section>
+    <?php endif; ?>
 
     <!-- Most Selling Products -->
+    <?php if (!$category_filter): ?>
     <section class="most-selling-section">
         <div class="container">
             <h2 class="section-title highlighted-title animated-title">🔥 MOST SELLING PRODUCTS</h2>
@@ -290,8 +356,10 @@ $videos = $videos_stmt->fetchAll();
             </div>
         </div>
     </section>
+    <?php endif; ?>
 
     <!-- ==== MODIFIED VIDEO SECTION ==== -->
+    <?php if (!$category_filter): ?>
     <section class="video-section">
         <div class="container">
             <h2 class="section-title animated-title">🎥 Product Demo Videos</h2>
@@ -353,8 +421,10 @@ $videos = $videos_stmt->fetchAll();
             </div>
         </div>
     </section>
+    <?php endif; ?>
 
     <!-- About Us Section -->
+    <?php if (!$category_filter): ?>
     <section class="about-section">
         <div class="container">
             <h2 class="section-title animated-title">About Us</h2>
@@ -388,6 +458,7 @@ $videos = $videos_stmt->fetchAll();
             </div>
         </div>
     </section>
+    <?php endif; ?>
 
     <!-- Footer -->
     <footer class="footer">

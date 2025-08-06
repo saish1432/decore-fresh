@@ -265,23 +265,31 @@ function confirmPurchase() {
     
     let message = `🛒 Cart Order Details:\n\n`;
     let totalValue = 0;
+    let totalQuantity = 0;
     
     cart.forEach(item => {
         message += `📦 ${item.name}\n💰 ₹${item.price} x ${item.quantity} = ₹${item.price * item.quantity}\n\n`;
         totalValue += item.price * item.quantity;
+        totalQuantity += item.quantity;
     });
     
+    message += `📊 Total Items: ${totalQuantity}\n`;
     message += `💳 Total Value: ₹${totalValue}\n\n`;
     message += `Thank you for purchasing! We will call you within 20 minutes to complete your payment online.`;
     
-    const whatsappUrl = `https://wa.me/1234567890?text=${encodeURIComponent(message)}`;
+    // Get WhatsApp number from settings or use default
+    const whatsappNumber = '1234567890'; // You can make this dynamic from database
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
     
     // Record the order
     recordOrder(cart, totalValue);
     
     // Clear cart
     cart = [];
+    updateCartDisplay();
     closeCart();
+    
+    showNotification('Order sent to WhatsApp! We will contact you soon.');
     
     window.open(whatsappUrl, '_blank');
 }

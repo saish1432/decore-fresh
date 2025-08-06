@@ -18,6 +18,7 @@ if ($_POST) {
         if ($action === 'add' || $action === 'edit') {
             $id = $_POST['id'] ?? '';
             $name = $_POST['name'];
+            $slug = strtolower(str_replace(' ', '-', $name));
             $description = $_POST['description'];
             $price = floatval($_POST['price']);
             $market_price = floatval($_POST['market_price'] ?? 0);
@@ -31,14 +32,18 @@ if ($_POST) {
             $image2 = $_POST['image2'] ?? '';
             
             if ($action === 'add') {
-                $stmt = $pdo->prepare("INSERT INTO products (name, description, price, market_price, category, image1, image2, is_hot, is_new, is_most_selling, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$name, $description, $price, $market_price, $category, $image1, $image2, $is_hot, $is_new, $is_most_selling, $status]);
+                $stmt = $pdo->prepare("INSERT INTO products (name, slug, description, price, market_price, category, image1, image2, is_hot, is_new, is_most_selling, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$name, $slug, $description, $price, $market_price, $category, $image1, $image2, $is_hot, $is_new, $is_most_selling, $status]);
                 $success = 'Product added successfully!';
             } else {
-                $stmt = $pdo->prepare("UPDATE products SET name=?, description=?, price=?, market_price=?, category=?, image1=?, image2=?, is_hot=?, is_new=?, is_most_selling=?, status=? WHERE id=?");
-                $stmt->execute([$name, $description, $price, $market_price, $category, $image1, $image2, $is_hot, $is_new, $is_most_selling, $status, $id]);
+                $stmt = $pdo->prepare("UPDATE products SET name=?, slug=?, description=?, price=?, market_price=?, category=?, image1=?, image2=?, is_hot=?, is_new=?, is_most_selling=?, status=? WHERE id=?");
+                $stmt->execute([$name, $slug, $description, $price, $market_price, $category, $image1, $image2, $is_hot, $is_new, $is_most_selling, $status, $id]);
                 $success = 'Product updated successfully!';
             }
+            
+            // Redirect to prevent form resubmission
+            header('Location: products.php?success=' . urlencode($success));
+            exit();
         }
         
         if ($action === 'delete') {
@@ -46,10 +51,15 @@ if ($_POST) {
             $stmt = $pdo->prepare("DELETE FROM products WHERE id = ?");
             $stmt->execute([$id]);
             $success = 'Product deleted successfully!';
-        }
+            header('Location: products.php?success=' . urlencode($success));
     } catch (Exception $e) {
         $error = 'Database error: ' . $e->getMessage();
     }
+}
+
+// Get success message from URL
+if (isset($_GET['success'])) {
+    $success = $_GET['success'];
 }
 
 // Get products
@@ -216,7 +226,7 @@ try {
                             <option value="">Select Category</option>
                             <option value="accessories">Car Accessories</option>
                             <?php foreach($categories as $cat): ?>
-                            <option value="<?php echo htmlspecialchars($cat['name']); ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                            <option value="<?php echo htmlspecialchars($cat['slug']); ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
